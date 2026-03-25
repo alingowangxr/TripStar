@@ -83,9 +83,13 @@ export async function generateTripPlan(formData: TripFormData): Promise<TripPlan
           reject(new Error(status.error || t('api.generateTripPlanFailed')))
         }
         // status === 'processing' → 继续轮询
-      } catch (err) {
+      } catch (err: any) {
         clearInterval(interval)
-        reject(err)
+        if (err?.response?.status === 408 || err?.message?.includes('超时')) {
+          reject(new Error('任务超时，请重新提交行程规划'))
+        } else {
+          reject(err)
+        }
       }
     }, 3000)
   })

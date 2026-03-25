@@ -21,7 +21,7 @@ ARG VITE_GOOGLE_MAPS_API_KEY
 ENV VITE_API_BASE_URL=""
 ENV VITE_MAP_PROVIDER=${VITE_MAP_PROVIDER:-amap}
 ENV VITE_AMAP_WEB_JS_KEY=${VITE_AMAP_WEB_JS_KEY:-your_amap_web_js_api_key_here}
-ENV VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
+ENV VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}
 
 # 跳过 vue-tsc 类型检查，直接构建（类型错误不影响运行）
 RUN npx vite build
@@ -62,5 +62,8 @@ RUN chmod +x ./start.sh
 
 # 魔搭创空间要求端口 7860
 EXPOSE 7860
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:7860/health || exit 1
 
 CMD ["./start.sh"]

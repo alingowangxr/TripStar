@@ -1,6 +1,7 @@
 """旅行规划API路由 - 异步轮询模式"""
 
 import asyncio
+import time
 import uuid
 from fastapi import APIRouter, HTTPException
 from ...models.schemas import (
@@ -9,6 +10,7 @@ from ...models.schemas import (
     ErrorResponse
 )
 from ...agents.trip_planner_agent import get_trip_planner_agent
+from loguru import logger
 from ...services.knowledge_graph_service import build_knowledge_graph
 
 router = APIRouter(prefix="/trip", tags=["旅行规划"])
@@ -28,15 +30,15 @@ async def plan_trip(request: TripRequest):
     """
     task_id = str(uuid.uuid4())[:8]
 
-    print(f"\n{'='*60}")
-    print(f"📥 收到旅行规划请求 (task_id={task_id}):")
-    print(f"   城市: {request.city}")
-    print(f"   日期: {request.start_date} - {request.end_date}")
-    print(f"   天数: {request.travel_days}")
-    print(f"{'='*60}\n")
+    logger.info(f"\n{'='*60}")
+    logger.info(f"📥 收到旅行规划请求 (task_id={task_id}):")
+    logger.info(f"   城市: {request.city}")
+    logger.info(f"   日期: {request.start_date} - {request.end_date}")
+    logger.info(f"   天数: {request.travel_days}")
+    logger.info(f"{'='*60}\n")
 
     # 将任务状态标记为进行中
-    _tasks[task_id] = {"status": "processing", "progress": "正在初始化智能体..."}
+    _tasks[task_id] = {"status": "processing", "progress": "正在初始化智能体...", "created_at": time.time()}
 
     # 启动后台任务
     asyncio.create_task(_run_trip_planning(task_id, request))
@@ -56,7 +58,7 @@ async def _run_trip_planning(task_id: str, request: TripRequest):
         _tasks[task_id]["progress"] = "正在构建知识图谱..."
         graph_data = build_knowledge_graph(trip_plan)
 
-        print(f"✅ 任务 {task_id} 完成")
+        logger.info(f"✅ 任务 {task_id} 完成")
 
         _tasks[task_id] = {
             "status": "completed",
@@ -69,7 +71,7 @@ async def _run_trip_planning(task_id: str, request: TripRequest):
         }
 
     except Exception as e:
-        print(f"❌ 任务 {task_id} 失败: {e}")
+        logger.error(f"❌ 任务 {task_id} 失败: {e}")
         import traceback
         traceback.print_exc()
         _tasks[task_id] = {
@@ -106,6 +108,10 @@ async def get_task_status(task_id: str):
             "error": error
         }
     else:
+        elapsed = time.time() - task.get("created_at", time.time())
+        if elapsed > 600:
+            del _tasks[task_id]
+            raise HTTPException(status_code=408, detail="任务超时，请重新提交")
         return {
             "status": "processing",
             "progress": task.get("progress", "处理中...")
