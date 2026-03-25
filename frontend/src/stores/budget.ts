@@ -125,8 +125,10 @@ export const useBudgetStore = defineStore('budget', () => {
       plan.days[item.dayIndex].hotel!.estimated_cost = newAmount
     else if (item.type === 'meal' && item.dayIndex !== null && item.sourceIndex !== undefined)
       plan.days[item.dayIndex].meals[item.sourceIndex].estimated_cost = newAmount
-    else if (item.type === 'transport')
+    else if (item.type === 'transport') {
       recalculate(newAmount)
+      return
+    }
     recalculate()
   }
 

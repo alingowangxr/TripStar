@@ -23,8 +23,6 @@ export const useChatStore = defineStore('chat', () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       history.value.push({ role: 'assistant', content: data.reply })
-    } catch (e: any) {
-      history.value.push({ role: 'assistant', content: `抱歉，发生错误：${e.message}` })
     } finally {
       isLoading.value = false
     }

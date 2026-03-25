@@ -154,7 +154,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 import { useChatStore } from '@/stores/chat'
 import { useTripPlanStore } from '@/stores/tripPlan'
 
@@ -219,29 +218,12 @@ const sendQuickQuestion = (q: string) => {
 
 const sendChatMessage = async () => {
   const text = chatInput.value.trim()
-  if (!text || chatLoading.value || !tripPlanStore.tripPlan) return
+  if (!text || chatStore.isLoading || !tripPlanStore.tripPlan) return
 
   chatInput.value = ''
-  scrollChatToBottom()
-
   try {
-    const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-    const res = await axios.post(`${apiBase}/api/chat/ask`, {
-      message: text,
-      trip_plan: tripPlanStore.tripPlan,
-      history: chatStore.history.slice(-10),
-      language: locale.value
-    })
-
-    chatStore.history.push({ role: 'user', content: text })
-    if (res.data.success) {
-      chatStore.history.push({ role: 'assistant', content: res.data.reply })
-    } else {
-      chatStore.history.push({ role: 'assistant', content: t('result.chat.replyFallback') })
-    }
-  } catch (err) {
-    console.error('Chat error:', err)
-    chatStore.history.push({ role: 'user', content: text })
+    await chatStore.sendMessage(text, tripPlanStore.tripPlan, locale.value)
+  } catch {
     chatStore.history.push({ role: 'assistant', content: t('result.chat.networkError') })
   } finally {
     scrollChatToBottom()

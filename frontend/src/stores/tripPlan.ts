@@ -19,11 +19,11 @@ export const useTripPlanStore = defineStore('tripPlan', () => {
   }
 
   function beginEdit() {
-    originalPlan.value = JSON.parse(JSON.stringify(tripPlan.value))
+    originalPlan.value = structuredClone(tripPlan.value)
   }
 
   function cancelEdit() {
-    if (originalPlan.value) tripPlan.value = JSON.parse(JSON.stringify(originalPlan.value))
+    if (originalPlan.value) tripPlan.value = structuredClone(originalPlan.value)
     originalPlan.value = null
   }
 
