@@ -123,5 +123,17 @@ npm run dev
 感謝 [HelloAgents](https://github.com/google/hello-agents) 提供的多智能體框架支持。
 歡迎提交 Issue 或 Pull Request 來幫助 TripStar 變得更好！
 
+## 📄 授權說明
+本项目採用 **GNU General Public License v2.0 (GPL-2.0)** 授權。
+
+**Copyright (c) 2024 1sdv.**  
+**Copyright (c) 2024-2026 alingowangxr.**
+
+本項目是基於 [1sdv/TripStar](https://github.com/1sdv/TripStar) 的分叉版本（Fork），並在原項目的基礎上進行了功能擴展（如 Google Maps 整合、多語言優化等）。
+
+本程序是自由軟件：您可以根據自由軟件基金會發佈的 GNU 通用公共許可證（許可證的第 2 版或之後的任何版本）的條款重新分發它和/或修改它。
+
+發佈本程序的目的是希望它有用，但**不作任何擔保**；甚至沒有對**適銷性**或**特定用途適用性**的暗示擔保。詳見 [LICENSE](./LICENSE) 文件。
+
 ---
 **旅途星辰 (TripStar)** - *讓每一場旅行都閃耀如星辰。*
