@@ -168,43 +168,69 @@ class MultiAgentTripPlanner:
         try:
             settings = get_settings()
             self.llm = get_llm()
+            self.map_provider = settings.map_provider
 
-            # 创建共享的MCP工具(只创建一次)
-            print("  - 创建共享MCP工具...")
-            self.amap_tool = MCPTool(
-                name="amap",
-                description="高德地图服务",
-                server_command=["uvx", "amap-mcp-server"],
-                env={"AMAP_MAPS_API_KEY": settings.vite_amap_web_key},
-                auto_expand=True
-            )
+            # 根据供应商设置工具名称
+            if self.map_provider == "google":
+                self.search_tool_name = "google_maps_search"
+                self.weather_tool_name = "google_maps_weather" 
+            else:
+                self.search_tool_name = "amap_maps_text_search"
+                self.weather_tool_name = "amap_maps_weather"
+
+            # 创建工具
+            self.map_tools = []
+            if self.map_provider == "google":
+                print("  - [Google Maps] 创建自定义工具接口...")
+                from ..services import get_map_service
+                google_service = get_map_service()
+                
+                # 定义 Google Maps 搜索工具
+                def google_maps_search_tool(keywords: str, city: str):
+                    """使用 Google Maps 搜索景点或酒店"""
+                    results = google_service.search_poi(keywords, city)
+                    return json.dumps([r.model_dump() for r in results], ensure_ascii=False)
+
+                # 将 Python 函数封装为 Agent 工具 (SimpleAgent 支持直接 add_tool 传入函数或包含 __call__ 的对象)
+                # 注意: SimpleAgent 的实现可能需要特定的工具包装, 这里我们根据其实际能力调整
+                self.map_tools.append(google_maps_search_tool)
+            else:
+                print("  - [高德地图] 创建共享MCP工具...")
+                self.amap_tool = MCPTool(
+                    name="amap",
+                    description="高德地图服务",
+                    server_command=["uvx", "amap-mcp-server"],
+                    env={"AMAP_MAPS_API_KEY": settings.vite_amap_web_key},
+                    auto_expand=True
+                )
+                self.map_tools.append(self.amap_tool)
 
             # 创建景点搜索Agent
             print("  - 创建景点搜索Agent...")
             self.attraction_agent = SimpleAgent(
                 name="景点搜索专家",
                 llm=self.llm,
-                system_prompt=ATTRACTION_AGENT_PROMPT
+                system_prompt=ATTRACTION_AGENT_PROMPT_TEMPLATE.format(tool_name=self.search_tool_name)
             )
-            self.attraction_agent.add_tool(self.amap_tool)
+            for tool in self.map_tools: self.attraction_agent.add_tool(tool)
 
             # 创建天气查询Agent
             print("  - 创建天气查询Agent...")
             self.weather_agent = SimpleAgent(
                 name="天气查询专家",
                 llm=self.llm,
-                system_prompt=WEATHER_AGENT_PROMPT
+                system_prompt=WEATHER_AGENT_PROMPT_TEMPLATE.format(tool_name=self.weather_tool_name)
             )
-            self.weather_agent.add_tool(self.amap_tool)
+            for tool in self.map_tools: self.weather_agent.add_tool(tool)
 
             # 创建酒店推荐Agent
             print("  - 创建酒店推荐Agent...")
             self.hotel_agent = SimpleAgent(
                 name="酒店推荐专家",
                 llm=self.llm,
-                system_prompt=HOTEL_AGENT_PROMPT
+                system_prompt=HOTEL_AGENT_PROMPT_TEMPLATE.format(tool_name=self.search_tool_name)
             )
-            self.hotel_agent.add_tool(self.amap_tool)
+            for tool in self.map_tools: self.hotel_agent.add_tool(tool)
 
             # 创建行程规划Agent(不需要工具)
             print("  - 创建行程规划Agent...")
@@ -214,10 +240,7 @@ class MultiAgentTripPlanner:
                 system_prompt=PLANNER_AGENT_PROMPT
             )
 
-            print(f"✅ 多智能体系统初始化成功")
-            print(f"   景点搜索Agent: {len(self.attraction_agent.list_tools())} 个工具")
-            print(f"   天气查询Agent: {len(self.weather_agent.list_tools())} 个工具")
-            print(f"   酒店推荐Agent: {len(self.hotel_agent.list_tools())} 个工具")
+            print(f"✅ 多智能体系统初始化成功 ({self.map_provider})")
 
         except Exception as e:
             print(f"❌ 多智能体系统初始化失败: {str(e)}")
@@ -294,19 +317,22 @@ class MultiAgentTripPlanner:
     
     def _build_attraction_query(self, request: TripRequest) -> str:
         """构建景点搜索查询 - 直接包含工具调用"""
-        keywords = []
-        if request.preferences:
-            # 只取第一个偏好作为关键词
-            keywords = request.preferences[0]
-        else:
-            keywords = "景点"
-
-        # 直接返回工具调用格式，使用正确的工具名和严格的格式
-        query = f"请使用amap_maps_text_search工具搜索{request.city}的{keywords}相关的景点。\n非常重要：你必须直接输出 `[TOOL_CALL:amap_maps_text_search:keywords={keywords},city={request.city}]`，不要附带任何多余的 JSON 或文字说明！"
+        keywords = request.preferences[0] if request.preferences else "景点"
+        query = f"请使用{self.search_tool_name}工具搜索{request.city}的{keywords}相关的景点。\n非常重要：你必须直接输出 `[TOOL_CALL:{self.search_tool_name}:keywords={keywords},city={request.city}]`，不要附带任何多余的 JSON 或文字说明！"
         return query
+
 
     def _build_planner_query(self, request: TripRequest, attractions: str, weather: str, hotels: str = "") -> str:
         """构建行程规划查询"""
+        # 根据语言设置回复语言要求
+        lang_instruction = "请使用简体中文回复。"
+        if request.language == "zh-TW":
+            lang_instruction = "请使用繁體中文（台灣習慣）回复。"
+        elif request.language == "en-US":
+            lang_instruction = "Please reply in English."
+        elif request.language == "ja-JP":
+            lang_instruction = "日本語で返信してください。"
+
         query = f"""请根据以下信息生成{request.city}的{request.travel_days}天旅行计划:
 
 **基本信息:**
@@ -316,6 +342,9 @@ class MultiAgentTripPlanner:
 - 交通方式: {request.transportation}
 - 住宿: {request.accommodation}
 - 偏好: {', '.join(request.preferences) if request.preferences else '无'}
+
+**回复语言要求:**
+{lang_instruction}
 
 **景点信息:**
 {attractions}
@@ -408,6 +437,41 @@ class MultiAgentTripPlanner:
                         visit_duration=120,
                         description=f"这是{request.city}的著名景点",
                         category="景点"
+                    )
+                    for j in range(2)
+                ],
+                meals=[
+                    Meal(type="breakfast", name=f"第{i+1}天早餐", description="当地特色早餐"),
+                    Meal(type="lunch", name=f"第{i+1}天午餐", description="午餐推荐"),
+                    Meal(type="dinner", name=f"第{i+1}天晚餐", description="晚餐推荐")
+                ]
+            )
+            days.append(day_plan)
+        
+        return TripPlan(
+            city=request.city,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            days=days,
+            weather_info=[],
+            overall_suggestions=f"这是为您规划的{request.city}{request.travel_days}日游行程,建议提前查看各景点的开放时间。"
+        )
+
+
+# 全局多智能体系统实例
+_multi_agent_planner = None
+
+
+def get_trip_planner_agent() -> MultiAgentTripPlanner:
+    """获取多智能体旅行规划系统实例(单例模式)"""
+    global _multi_agent_planner
+
+    if _multi_agent_planner is None:
+        _multi_agent_planner = MultiAgentTripPlanner()
+
+    return _multi_agent_planner
+
+点"
                     )
                     for j in range(2)
                 ],

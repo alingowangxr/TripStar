@@ -3,8 +3,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from ...services.amap_service import get_amap_service
+from ...services import get_map_service
 from ...services.unsplash_service import get_unsplash_service
+from ...config import get_settings
 
 router = APIRouter(prefix="/poi", tags=["POI"])
 
@@ -33,10 +34,10 @@ async def get_poi_detail(poi_id: str):
         POI详情响应
     """
     try:
-        amap_service = get_amap_service()
+        service = get_map_service()
         
-        # 调用高德地图POI详情API
-        result = amap_service.get_poi_detail(poi_id)
+        # 调用地图POI详情API
+        result = service.get_poi_detail(poi_id)
         
         return POIDetailResponse(
             success=True,
@@ -69,8 +70,8 @@ async def search_poi(keywords: str, city: str = "北京"):
         搜索结果
     """
     try:
-        amap_service = get_amap_service()
-        result = amap_service.search_poi(keywords, city)
+        service = get_map_service()
+        result = service.search_poi(keywords, city)
 
         return {
             "success": True,
@@ -104,34 +105,34 @@ async def get_attraction_photo(name: str, city: Optional[str] = None):
     """
     try:
         unsplash_service = get_unsplash_service()
-
-        import pypinyin
+        settings = get_settings()
         
-        # 将景点名称转为无声调的拼音 (例如: 钟楼 -> zhong lou)
-        pinyin_list = pypinyin.pinyin(name, style=pypinyin.Style.NORMAL)
-        pinyin_name = "".join([p[0] for p in pinyin_list])
+        # 判断目的地是否在国内 (简单判断)
+        is_international = settings.map_provider == "google"
         
-        # 尝试 1: 景点拼音 + China
-        query_attraction = f"{pinyin_name} China"
-        photo_url = unsplash_service.get_photo_url(query_attraction)
+        photo_url = None
+        
+        if is_international:
+            # Google 模式下直接用英文名称搜索效果更好 (假設 name 已經由 Agent 翻譯或本身是英文)
+            # 嘗試 1: 原名 + 城市
+            query = f"{name} {city}" if city else name
+            photo_url = unsplash_service.get_photo_url(query)
+        else:
+            # 高德模式下保持拼音邏輯
+            import pypinyin
+            pinyin_list = pypinyin.pinyin(name, style=pypinyin.Style.NORMAL)
+            pinyin_name = "".join([p[0] for p in pinyin_list])
+            query_attraction = f"{pinyin_name} China"
+            photo_url = unsplash_service.get_photo_url(query_attraction)
 
         if not photo_url:
-            # 尝试 2: 如果有城市参数，使用真实的城市拼音做兜底
-            if city:
-                city_pinyin_list = pypinyin.pinyin(city, style=pypinyin.Style.NORMAL)
-                city_pinyin = "".join([p[0] for p in city_pinyin_list])
-            else:
-                # 非常弱的备用方案(当city为空时)
-                city_prefix = name[:2]
-                city_pinyin_list = pypinyin.pinyin(city_prefix, style=pypinyin.Style.NORMAL)
-                city_pinyin = "".join([p[0] for p in city_pinyin_list])
-            
-            query_city = f"{city_pinyin} China landmark"
-            photo_url = unsplash_service.get_photo_url(query_city, randomize=True)
+            # 备用方案
+            fallback_query = f"{city} travel" if city else "travel landmark"
+            photo_url = unsplash_service.get_photo_url(fallback_query, randomize=True)
             
         if not photo_url:
-            # 尝试 3: 最泛的兜底，保证一定有图
-            photo_url = unsplash_service.get_photo_url("beautiful ancient architecture China", randomize=True)
+            # 最终兜底
+            photo_url = unsplash_service.get_photo_url("beautiful landscape", randomize=True)
 
         return {
             "success": True,

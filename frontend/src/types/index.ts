@@ -85,6 +85,7 @@ export interface TripFormData {
   accommodation: string
   preferences: string[]
   free_text_input: string
+  language?: string
 }
 
 export interface TripPlanResponse {
@@ -132,6 +133,7 @@ export interface TripChatRequest {
   message: string
   trip_plan: object
   history: ChatMessage[]
+  language?: string
 }
 
 export interface TripChatResponse {

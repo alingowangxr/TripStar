@@ -565,6 +565,7 @@ import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import AMapLoader from '@amap/amap-jsapi-loader'
+import { Loader as GoogleMapsLoader } from '@googlemaps/js-api-loader'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import * as echarts from 'echarts'
@@ -2357,65 +2358,98 @@ const searchRoutePath = (
 
 // 初始化地图
 const initMap = async () => {
+  const provider = import.meta.env.VITE_MAP_PROVIDER || 'amap'
+  
+  if (provider === 'google') {
+    await initGoogleMap()
+  } else {
+    await initAMap()
+  }
+}
+
+// 初始化高德地图
+const initAMap = async () => {
   try {
     const AMap = await AMapLoader.load({
-      key: import.meta.env.VITE_AMAP_WEB_JS_KEY,  // 高德地图Web端(JS API) Key
+      key: import.meta.env.VITE_AMAP_WEB_JS_KEY,
       version: '2.0',
       plugins: ['AMap.Marker', 'AMap.Polyline', 'AMap.InfoWindow', 'AMap.Driving', 'AMap.Walking']
     })
 
-    // 创建地图实例
-    map = new AMap.Map('amap-container', {
+    map = new AMap.Map('map-canvas', {
       zoom: 12,
-      center: [116.397128, 39.916527], // 默认中心点(北京)
+      center: [116.397128, 39.916527],
       viewMode: '3D',
       mapStyle: 'amap://styles/darkblue'
     })
 
-    // 添加景点标记
-    await addAttractionMarkers(AMap)
-
+    await addAttractionMarkersAMap(AMap)
     message.success(t('result.messages.mapLoaded'))
   } catch (error) {
-    console.error('地图加载失败:', error)
+    console.error('高德地图加载失败:', error)
     message.error(t('result.messages.mapLoadFailed'))
   }
 }
 
-// 添加景点标记
-const addAttractionMarkers = async (AMap: any) => {
-  if (!tripPlan.value) return
+// 初始化 Google Maps
+const initGoogleMap = async () => {
+  try {
+    const loader = new GoogleMapsLoader({
+      apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+      version: 'weekly',
+      libraries: ['places']
+    })
 
+    const { Map } = await loader.importLibrary('maps') as google.maps.MapsLibrary
+    
+    const mapOptions: google.maps.MapOptions = {
+      center: { lat: 39.916527, lng: 116.397128 },
+      zoom: 12,
+      mapId: 'DEMO_MAP_ID', // 建议使用自己的 Map ID 以支持高级标记
+      styles: [
+        { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+        { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+        { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+        // ... 更多暗色主题样式
+      ]
+    }
+
+    const mapElement = document.getElementById('map-canvas')
+    if (mapElement) {
+      map = new Map(mapElement, mapOptions)
+      await addAttractionMarkersGoogle()
+      message.success(t('result.messages.mapLoaded'))
+    }
+  } catch (error) {
+    console.error('Google Maps 加载失败:', error)
+    message.error(t('result.messages.mapLoadFailed'))
+  }
+}
+
+// 添加高德地图标记 (原 addAttractionMarkers 逻辑)
+const addAttractionMarkersAMap = async (AMap: any) => {
+  if (!tripPlan.value) return
   const markers: any[] = []
   const allAttractions: any[] = []
-
-  // 收集所有景点（保留全局编号）
   let globalIndex = 0
+  
   tripPlan.value.days.forEach((day, dayIndex) => {
     day.attractions.forEach((attraction, attrIndex) => {
       globalIndex++
-      if (attraction.location && attraction.location.longitude && attraction.location.latitude) {
-        allAttractions.push({
-          ...attraction,
-          dayIndex,
-          attrIndex,
-          globalIndex   // 全局编号（从1开始）
-        })
+      if (attraction.location?.longitude && attraction.location?.latitude) {
+        allAttractions.push({ ...attraction, dayIndex, attrIndex, globalIndex })
       }
     })
   })
 
-  // 创建标记
   allAttractions.forEach((attraction, index) => {
     const marker = new AMap.Marker({
       position: [attraction.location.longitude, attraction.location.latitude],
       content: buildMarkerContent(attraction.dayIndex + 1, attraction.attrIndex + 1),
       anchor: 'center',
-      offset: new AMap.Pixel(0, 0),
       zIndex: 120 + index,
     })
 
-    // 创建信息窗口
     const infoWindow = new AMap.InfoWindow({
       isCustom: true,
       content: buildInfoWindowContent(attraction),
@@ -2423,31 +2457,162 @@ const addAttractionMarkers = async (AMap: any) => {
       closeWhenClickMap: true,
     })
 
-    // 悬停显示纯文本tooltip，移出关闭
-    marker.on('mouseover', () => {
-      infoWindow.open(map, marker.getPosition())
-    })
-    marker.on('mouseout', () => {
-      infoWindow.close()
-    })
-    // 点击也显示，兼容触屏设备
-    marker.on('click', () => {
-      infoWindow.open(map, marker.getPosition())
-    })
-
+    marker.on('mouseover', () => infoWindow.open(map, marker.getPosition()))
+    marker.on('mouseout', () => infoWindow.close())
+    marker.on('click', () => infoWindow.open(map, marker.getPosition()))
     markers.push(marker)
   })
 
-  // 添加标记到地图
   map.add(markers)
-
-  // 绘制路线（优先真实道路路线，失败时回退直线）
-  const routePolylines = await drawRoutes(AMap, allAttractions)
-
-  // 自动调整视野以包含所有标记
+  const routePolylines = await drawRoutesAMap(AMap, allAttractions)
   if (allAttractions.length > 0) {
-    const overlaysForFit = routePolylines.length > 0 ? [...markers, ...routePolylines] : markers
-    map.setFitView(overlaysForFit)
+    map.setFitView([...markers, ...routePolylines])
+  }
+}
+
+// 添加 Google Maps 标记
+const addAttractionMarkersGoogle = async () => {
+  if (!tripPlan.value) return
+  const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary
+  const bounds = new google.maps.LatLngBounds()
+
+  const allAttractions: any[] = []
+  tripPlan.value.days.forEach((day, dayIndex) => {
+    day.attractions.forEach((attraction, attrIndex) => {
+      if (attraction.location?.longitude && attraction.location?.latitude) {
+        allAttractions.push({ ...attraction, dayIndex, attrIndex })
+      }
+    })
+  })
+
+  allAttractions.forEach((attraction) => {
+    const position = { lat: attraction.location.latitude, lng: attraction.location.longitude }
+    
+    // 自定义标记内容
+    const markerElement = document.createElement('div')
+    markerElement.innerHTML = buildMarkerContent(attraction.dayIndex + 1, attraction.attrIndex + 1)
+    
+    const marker = new AdvancedMarkerElement({
+      map,
+      position,
+      content: markerElement,
+      title: attraction.name,
+    })
+
+    const infoWindow = new google.maps.InfoWindow({
+      content: buildInfoWindowContent(attraction),
+    })
+
+    marker.addListener('click', () => infoWindow.open(map, marker))
+    bounds.extend(position)
+  })
+
+  map.fitBounds(bounds)
+  await drawRoutesGoogle(allAttractions)
+}
+
+// 绘制高德路线
+const drawRoutesAMap = async (AMap: any, attractions: any[]): Promise<any[]> => {
+  if (attractions.length < 2 || !tripPlan.value) return []
+
+  const dayGroups: Record<number, any[]> = {}
+  attractions.forEach(attr => {
+    if (!dayGroups[attr.dayIndex]) {
+      dayGroups[attr.dayIndex] = []
+    }
+    dayGroups[attr.dayIndex].push(attr)
+  })
+
+  const polylines: any[] = []
+
+  for (const dayAttractions of Object.values(dayGroups)) {
+    if (dayAttractions.length < 2) continue
+
+    dayAttractions.sort((a: any, b: any) => a.attrIndex - b.attrIndex)
+    const dayIndex = dayAttractions[0].dayIndex
+    const transportation = tripPlan.value.days?.[dayIndex]?.transportation || ''
+    const preferredMode = detectRouteMode(transportation)
+
+    for (let i = 0; i < dayAttractions.length - 1; i++) {
+      const start = dayAttractions[i]
+      const end = dayAttractions[i + 1]
+      const startPoint: RoutePoint = [start.location.longitude, start.location.latitude]
+      const endPoint: RoutePoint = [end.location.longitude, end.location.latitude]
+
+      const plannedPath =
+        preferredMode === 'straight'
+          ? null
+          : await searchRoutePath(AMap, preferredMode as Exclude<RouteMode, 'straight'>, startPoint, endPoint)
+
+      const usePlannedRoute = Array.isArray(plannedPath) && plannedPath.length > 1
+      const routeModeForStyle: RouteMode = usePlannedRoute ? preferredMode : 'straight'
+      const path = usePlannedRoute ? plannedPath : [startPoint, endPoint]
+      const style = ROUTE_STYLE_PRESETS[routeModeForStyle]
+
+      const polyline = new AMap.Polyline({
+        path,
+        ...style,
+        showDir: true,
+        zIndex: 90,
+      })
+
+      polylines.push(polyline)
+    }
+  }
+
+  if (polylines.length > 0) {
+    map.add(polylines)
+  }
+
+  return polylines
+}
+
+// 绘制 Google 路线
+const drawRoutesGoogle = async (attractions: any[]) => {
+  if (attractions.length < 2 || !tripPlan.value) return
+  
+  const directionsService = new google.maps.DirectionsService()
+  
+  // 按天分组
+  const dayGroups: Record<number, any[]> = {}
+  attractions.forEach(attr => {
+    if (!dayGroups[attr.dayIndex]) dayGroups[attr.dayIndex] = []
+    dayGroups[attr.dayIndex].push(attr)
+  })
+
+  for (const dayAttractions of Object.values(dayGroups)) {
+    if (dayAttractions.length < 2) continue
+    dayAttractions.sort((a: any, b: any) => a.attrIndex - b.attrIndex)
+    
+    const dayIndex = dayAttractions[0].dayIndex
+    const transportation = tripPlan.value.days?.[dayIndex]?.transportation || ''
+    const preferredMode = detectRouteMode(transportation)
+    const travelMode = preferredMode === 'walking' ? google.maps.TravelMode.WALKING : google.maps.TravelMode.DRIVING
+
+    for (let i = 0; i < dayAttractions.length - 1; i++) {
+      const start = dayAttractions[i]
+      const end = dayAttractions[i + 1]
+      
+      const request: google.maps.DirectionsRequest = {
+        origin: { lat: start.location.latitude, lng: start.location.longitude },
+        destination: { lat: end.location.latitude, lng: end.location.longitude },
+        travelMode: travelMode
+      }
+
+      directionsService.route(request, (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          new google.maps.DirectionsRenderer({
+            map: map,
+            directions: result,
+            suppressMarkers: true, // 已经自己画了标记
+            polylineOptions: {
+              strokeColor: ROUTE_STYLE_PRESETS[preferredMode].strokeColor,
+              strokeWeight: 4
+            }
+          })
+        }
+      })
+    }
   }
 }
 

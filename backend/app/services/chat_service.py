@@ -46,6 +46,7 @@ async def chat_with_trip_context(
     message: str,
     trip_plan_dict: Dict[str, Any],
     history: Optional[List[Dict[str, str]]] = None,
+    language: str = "zh-CN"
 ) -> str:
     """
     使用 LLM 回答关于当前行程的用户提问
@@ -54,6 +55,7 @@ async def chat_with_trip_context(
         message: 用户的提问
         trip_plan_dict: 当前旅行计划 (dict 格式)
         history: 可选的历史对话 [{"role": "user"/"assistant", "content": "..."}]
+        language: 回复语言
 
     Returns:
         AI 的回复文本
@@ -63,6 +65,17 @@ async def chat_with_trip_context(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": _build_context_message(trip_plan_dict)},
     ]
+
+    # 根据语言设置回复语言要求
+    lang_instruction = "请使用简体中文回复。"
+    if language == "zh-TW":
+        lang_instruction = "请使用繁體中文（台灣習慣）回复。"
+    elif language == "en-US":
+        lang_instruction = "Please reply in English."
+    elif language == "ja-JP":
+        lang_instruction = "日本語で返信してください。"
+
+    messages.append({"role": "user", "content": f"回复语言要求: {lang_instruction}"})
 
     # 追加历史对话
     if history:

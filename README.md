@@ -4,7 +4,7 @@
 <img width="1418" height="619" alt="PixPin_2026-03-11_00-38-31" src="https://github.com/user-attachments/assets/43d55fdf-beb2-47ea-b4a0-219613524776" />
 <p align="center">
   <img src="https://img.shields.io/badge/license-GPL--2.0-orange">
-  <img src="https://img.shields.io/badge/version-v0.2.0-green">
+  <img src="https://img.shields.io/badge/version-v0.3.0-blue">
   <img src="https://img.shields.io/badge/Docker-Build-blue?logo=docker">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg">
   <img src="https://img.shields.io/badge/vue-3.x-brightgreen.svg">
@@ -25,8 +25,10 @@
 
 ### 核心亮点
 
-* **多语言支持**: 深度集成 Vue I18n，系统界面及 AI 问答全程支持多语言无缝切换，为全球旅行者打造无障碍的行程规划体验。
-* **高定主题互动地图**: 深度集成高德地图 JS API 2.0，动态绘制“起点-景点-终点”的真实经纬度打卡路线，提供高级定制底图配色，一眼预览景点位置方便安排行程。
+* **双地图引擎支持**: 采用抽象化架构，可自由切换 **高德地图 (AMap)** 与 **Google Maps**。
+    *   **高德模式**: 深度优化中国大陆数据，支持精确的 POI 搜索及真实道路路径规划。
+    *   **Google 模式**: 赋能全球旅行规划，支持 WGS-84 坐标系、Places API 及全球 Directions 服务。
+* **多语言支持**: 深度集成 Vue I18n，系统界面及 AI 问答全程支持多语言无缝切换（已支持：简体中文、繁体中文(台湾)、日本語、English）。
 * **精准预算明细面板**: 智能汇总门票、餐饮、住宿与交通等多维度花销账单，提供直观的财务面板报表，让出行预算尽在掌握。
 * **多智能体协作协同**: 采用分工明确的多个 Agent（如景点规划师、天气预报员、酒店推荐专家），通过工作流 (Workflow) 协同完成复杂的旅行规划任务。
 * **知识图谱可视化**: 将生成的行程数据实时转换为节点关系图，直观展示“城市-天数-行程节点-预算”的空间结构。
@@ -211,3 +213,9 @@ helloagents-trip-planner-new/
 
 ## 🙏 致谢
 感谢 [linuxdo](https://linux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效。
+nux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效。
+` 作为项目 AI 指令上下文，优化开发者与 AI 助手的协作体验。
+
+## 🙏 致谢
+感谢 [linuxdo](https://linux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效。
+nux.do/) 社区的交流、分享与反馈，让 TripStar 的迭代更高效。

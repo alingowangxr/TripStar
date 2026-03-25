@@ -315,7 +315,8 @@ const handleSubmit = async () => {
       transportation: formData.transportation,
       accommodation: formData.accommodation,
       preferences: formData.preferences,
-      free_text_input: formData.free_text_input
+      free_text_input: formData.free_text_input,
+      language: locale.value
     }
 
     const response = await generateTripPlan(requestData)

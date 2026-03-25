@@ -230,6 +230,7 @@ const sendChatMessage = async () => {
       message: text,
       trip_plan: props.tripPlan,
       history: chatHistory.value.slice(0, -1),
+      language: locale.value
     })
 
     if (res.data.success) {
@@ -1145,6 +1146,19 @@ const sendChatMessage = async () => {
   .container-wrap:after {
     width: 6.5rem;
     height: 6rem;
+  }
+
+  .container-wrap:hover:after {
+    height: 6.5rem;
+  }
+
+  .content-card {
+    width: 6.5rem;
+    height: 6.5rem;
+  }
+}
+</style>
+t: 6rem;
   }
 
   .container-wrap:hover:after {

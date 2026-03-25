@@ -9,7 +9,7 @@ from ...models.schemas import (
     RouteResponse,
     WeatherResponse
 )
-from ...services.amap_service import get_amap_service
+from ...services import get_map_service
 
 router = APIRouter(prefix="/map", tags=["地图服务"])
 
@@ -38,7 +38,7 @@ async def search_poi(
     """
     try:
         # 获取服务实例
-        service = get_amap_service()
+        service = get_map_service()
         
         # 搜索POI
         pois = service.search_poi(keywords, city, citylimit)
@@ -77,7 +77,7 @@ async def get_weather(
     """
     try:
         # 获取服务实例
-        service = get_amap_service()
+        service = get_map_service()
         
         # 查询天气
         weather_info = service.get_weather(city)
@@ -114,7 +114,7 @@ async def plan_route(request: RouteRequest):
     """
     try:
         # 获取服务实例
-        service = get_amap_service()
+        service = get_map_service()
         
         # 规划路线
         route_info = service.plan_route(
@@ -148,12 +148,12 @@ async def health_check():
     """健康检查"""
     try:
         # 检查服务是否可用
-        service = get_amap_service()
+        service = get_map_service()
         
         return {
             "status": "healthy",
             "service": "map-service",
-            "mcp_tools_count": len(service.mcp_tool._available_tools)
+            "provider": "google" if hasattr(service, 'client') else "amap"
         }
     except Exception as e:
         raise HTTPException(

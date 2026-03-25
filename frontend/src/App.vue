@@ -23,6 +23,7 @@
               <a-select-option value="zh-CN">{{ t('app.language.zh') }}</a-select-option>
               <a-select-option value="ja-JP">{{ t('app.language.ja') }}</a-select-option>
               <a-select-option value="en-US">{{ t('app.language.en') }}</a-select-option>
+              <a-select-option value="zh-TW">{{ t('app.language.zh-TW') }}</a-select-option>
             </a-select>
             <div class="header-badge">
               <span class="badge-dot"></span>

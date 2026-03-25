@@ -31,8 +31,10 @@ class Settings(BaseSettings):
     # CORS配置 - 使用字符串,在代码中分割
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
 
-    # 高德地图API配置
+    # 地图服务配置
+    map_provider: str = "amap"  # "amap" 或 "google"
     vite_amap_web_key: str = ""
+    google_maps_api_key: str = ""
 
     # Unsplash API配置
     unsplash_access_key: str = ""
@@ -107,5 +109,8 @@ def print_config():
     print(f"LLM API Key: {'已配置' if llm_api_key else '未配置'}")
     print(f"LLM Base URL: {llm_base_url}")
     print(f"LLM Model: {llm_model}")
+    print(f"日志级别: {settings.log_level}")
+
+print(f"LLM Model: {llm_model}")
     print(f"日志级别: {settings.log_level}")
 

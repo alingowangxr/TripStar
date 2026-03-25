@@ -33,6 +33,7 @@ async def ask_about_trip(request: TripChatRequest):
             message=request.message,
             trip_plan_dict=request.trip_plan,
             history=history,
+            language=request.language
         )
 
         print(f"✅ AI 回复: {reply[:80]}...")

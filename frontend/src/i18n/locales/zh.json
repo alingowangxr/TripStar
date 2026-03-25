@@ -6,9 +6,11 @@
     "badge": "AI 文旅智能体",
     "language": {
       "label": "语言",
-      "zh": "中文",
+      "zh": "简体中文",
       "ja": "日本語",
-      "en": "English"
+      "en": "English",
+      "zh-TW": "繁體中文"
+
     },
     "footerBrand": "旅途星辰",
     "footerCopy": "{year} All rights reserved.",
@@ -35,6 +37,8 @@
   "home": {
     "heroBadge": "AI 智能行程规划引擎",
     "titleLine": "探索世界的每一种可能",
+    "titleLine1": "探索世界的",
+    "titleLine2": "每一种可能",
     "heroDesc": "告诉我你的目的地与偏好，AI 将为你定制一份独一无二的旅程方案",
     "nav": {
       "cta": "开始定制",
