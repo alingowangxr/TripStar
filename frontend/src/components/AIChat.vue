@@ -47,7 +47,7 @@
                         :key="question.labelKey"
                         type="button"
                         class="chat-suggestion"
-                        :disabled="chatLoading || !tripPlan"
+                        :disabled="chatLoading || !tripPlanStore.tripPlan"
                         @click="sendQuickQuestion(t(question.questionKey))"
                       >
                         {{ t(question.labelKey) }}
@@ -73,7 +73,7 @@
                   :placeholder="chatPlaceholder"
                   name="chat_bot"
                   id="chat_bot"
-                  :disabled="chatLoading || !tripPlan"
+                  :disabled="chatLoading || !tripPlanStore.tripPlan"
                   @keydown.enter.exact.prevent="sendChatMessage"
                 ></textarea>
               </div>
@@ -130,7 +130,7 @@
                 <button
                   type="button"
                   class="btn-submit"
-                  :disabled="chatLoading || !chatInput.trim() || !tripPlan"
+                  :disabled="chatLoading || !chatInput.trim() || !tripPlanStore.tripPlan"
                   @click="sendChatMessage"
                 >
                   <i>
@@ -155,18 +155,20 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
-import type { ChatMessage, TripPlan } from '@/types'
+import { useChatStore } from '@/stores/chat'
+import { useTripPlanStore } from '@/stores/tripPlan'
 
-const props = defineProps<{
-  tripPlan: TripPlan | null
-}>()
+const { t, locale } = useI18n()
+const chatStore = useChatStore()
+const tripPlanStore = useTripPlanStore()
 
-const { t } = useI18n()
 const chatOpen = ref(false)
 const chatInput = ref('')
-const chatHistory = ref<ChatMessage[]>([])
-const chatLoading = ref(false)
 const chatMessagesRef = ref<HTMLElement | null>(null)
+
+// Use store state instead of local refs
+const chatHistory = computed(() => chatStore.history)
+const chatLoading = computed(() => chatStore.isLoading)
 
 const quickQuestions = [
   {
@@ -184,7 +186,7 @@ const quickQuestions = [
 ]
 
 const chatPlaceholder = computed(() => {
-  if (!props.tripPlan) return t('result.noTripPlanDesc')
+  if (!tripPlanStore.tripPlan) return t('result.noTripPlanDesc')
   return t('result.chat.placeholder')
 })
 
@@ -217,32 +219,31 @@ const sendQuickQuestion = (q: string) => {
 
 const sendChatMessage = async () => {
   const text = chatInput.value.trim()
-  if (!text || chatLoading.value || !props.tripPlan) return
+  if (!text || chatLoading.value || !tripPlanStore.tripPlan) return
 
-  chatHistory.value.push({ role: 'user', content: text })
   chatInput.value = ''
-  chatLoading.value = true
   scrollChatToBottom()
 
   try {
     const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
     const res = await axios.post(`${apiBase}/api/chat/ask`, {
       message: text,
-      trip_plan: props.tripPlan,
-      history: chatHistory.value.slice(0, -1),
+      trip_plan: tripPlanStore.tripPlan,
+      history: chatStore.history.slice(-10),
       language: locale.value
     })
 
+    chatStore.history.push({ role: 'user', content: text })
     if (res.data.success) {
-      chatHistory.value.push({ role: 'assistant', content: res.data.reply })
+      chatStore.history.push({ role: 'assistant', content: res.data.reply })
     } else {
-      chatHistory.value.push({ role: 'assistant', content: t('result.chat.replyFallback') })
+      chatStore.history.push({ role: 'assistant', content: t('result.chat.replyFallback') })
     }
   } catch (err) {
     console.error('Chat error:', err)
-    chatHistory.value.push({ role: 'assistant', content: t('result.chat.networkError') })
+    chatStore.history.push({ role: 'user', content: text })
+    chatStore.history.push({ role: 'assistant', content: t('result.chat.networkError') })
   } finally {
-    chatLoading.value = false
     scrollChatToBottom()
   }
 }
@@ -1146,19 +1147,6 @@ const sendChatMessage = async () => {
   .container-wrap:after {
     width: 6.5rem;
     height: 6rem;
-  }
-
-  .container-wrap:hover:after {
-    height: 6.5rem;
-  }
-
-  .content-card {
-    width: 6.5rem;
-    height: 6.5rem;
-  }
-}
-</style>
-t: 6rem;
   }
 
   .container-wrap:hover:after {
