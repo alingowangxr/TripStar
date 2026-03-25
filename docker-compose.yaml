@@ -6,11 +6,15 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        VITE_MAP_PROVIDER: ${MAP_PROVIDER:-amap}
         VITE_AMAP_WEB_JS_KEY: ${VITE_AMAP_WEB_JS_KEY:-your_amap_web_js_api_key_here}
+        VITE_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     container_name: helloagents-trip-planner
     ports:
       - "7860:7860"
     environment:
+      - MAP_PROVIDER=${MAP_PROVIDER:-amap}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
       - LLM_API_KEY=${LLM_API_KEY:-your_key}
       - LLM_BASE_URL=${LLM_BASE_URL:-your_url}
       - LLM_MODEL_ID=${LLM_MODEL_ID:-your_model}
